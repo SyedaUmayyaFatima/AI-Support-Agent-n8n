@@ -1,0 +1,759 @@
+{
+  "name": "Customer Support Agent & Rag System",
+  "nodes": [
+    {
+      "parameters": {
+        "pollTimes": {
+          "item": [
+            {
+              "mode": "everyMinute"
+            }
+          ]
+        },
+        "simple": false,
+        "filters": {},
+        "options": {}
+      },
+      "type": "n8n-nodes-base.gmailTrigger",
+      "typeVersion": 1.3,
+      "position": [
+        -976,
+        64
+      ],
+      "id": "49713fb7-f98d-409d-849d-8fbc30bab87b",
+      "name": "Gmail Trigger",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "Nlxzo2ctrfqghvIQ",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=You are an expert customer support classifier. Your job is to:\n1. Analyze customer emails for URGENCY LEVEL\n2. Generate appropriate responses using provided knowledge base \n   and checking Pinecone database\n3. Rate the confidence based on customer message in email body \n   and subject. If it's bad/alarming/critical, give confidence \n   under 0.7. If neutral/normal, give above 0.7.\n4. Return structured data for automated routing.\n\nIMPORTANT: For ANY question about products, prices, availability, \nor delivery cities — you MUST use the Pinecone database tool \nFIRST before writing the reply. Never answer from your own knowledge.\n\nURGENCY CLASSIFICATION:\nNORMAL (auto-send):\n- General questions (business hours, pricing, services)\n- Product inquiries\n- Positive feedback\n- Basic information requests\n\nCRITICAL (create draft + alert manager):\n- Order not delivered/late delivery\n- Wrong items received\n- Damaged/defective products\n- Refund request\n- Angry/frustrated customers\n- Urgent time-sensitive requests\n- Service complaints\n- Payment issues\n\nYou must respond with EXACTLY this JSON format:\n{\n  \"urgency\": \"normal\" or \"critical\",\n  \"category\": \"pricing\" or \"delivery\" or \"complaint\" or \"product\" or \"refund\" or \"general\",\n  \"confidence\": 0.85,\n  \"customer_mood\": \"happy\" or \"neutral\" or \"frustrated\" or \"angry\",\n  \"reply\": \"Your professional response using knowledge base information\"\n}\n\nHere is the email body: {{ $('Gmail Trigger').item.json.text }}\nHere is the subject: {{ $('Gmail Trigger').item.json.subject }}",
+        "hasOutputParser": true,
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [
+        -752,
+        -96
+      ],
+      "id": "41ed9a4e-2a64-4ff0-b24d-7091c78c1cdd",
+      "name": "AI Agent"
+    },
+    {
+      "parameters": {
+        "sessionIdType": "customKey",
+        "sessionKey": "={{$json.threadId || $json[\"threadId\"] || $json.id }}"
+      },
+      "type": "@n8n/n8n-nodes-langchain.memoryBufferWindow",
+      "typeVersion": 1.3,
+      "position": [
+        -624,
+        192
+      ],
+      "id": "629762b8-db7d-402f-be09-b7296eaa9271",
+      "name": "Simple Memory"
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "mode": "list",
+          "value": "gpt-5-mini"
+        },
+        "responsesApiEnabled": false,
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.3,
+      "position": [
+        -784,
+        224
+      ],
+      "id": "b4b1a1f2-fc49-4ed1-8752-762c9c53e765",
+      "name": "OpenAI Chat Model",
+      "credentials": {
+        "openAiApi": {
+          "id": "X4hzLK52ICQvaNU3",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "model": "=text-embedding-3-small",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.embeddingsOpenAi",
+      "typeVersion": 1.2,
+      "position": [
+        -544,
+        368
+      ],
+      "id": "b6b4171a-7874-42db-a3cc-5f1e1e4dcdda",
+      "name": "Embeddings OpenAI",
+      "credentials": {
+        "openAiApi": {
+          "id": "X4hzLK52ICQvaNU3",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        16,
+        -400
+      ],
+      "id": "959bda77-71dc-4ecf-a54e-1677de7a9dd7",
+      "name": "When clicking ‘Execute workflow’"
+    },
+    {
+      "parameters": {
+        "resource": "fileFolder",
+        "returnAll": true,
+        "filter": {
+          "folderId": {
+            "__rl": true,
+            "value": "1vsW0xCAQ1jSmzBbpBkrZJWliEFwl4GNI",
+            "mode": "list",
+            "cachedResultName": "flower Data",
+            "cachedResultUrl": "https://drive.google.com/drive/folders/1vsW0xCAQ1jSmzBbpBkrZJWliEFwl4GNI"
+          }
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 3,
+      "position": [
+        256,
+        -304
+      ],
+      "id": "1ebe4159-72b6-4ebf-8098-0e3a501cc410",
+      "name": "Search files and folders",
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "XA7RAwkMEK8sXkv2",
+          "name": "Google Drive account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "download",
+        "fileId": {
+          "__rl": true,
+          "value": "={{ $json.id }}",
+          "mode": "id"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 3,
+      "position": [
+        432,
+        -384
+      ],
+      "id": "43e0ed0d-b15d-4c5f-893d-9b610d81b940",
+      "name": "Download file",
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "XA7RAwkMEK8sXkv2",
+          "name": "Google Drive account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        640,
+        -224
+      ],
+      "id": "1ad2da11-7f8a-4e1d-ae43-8d0e091bd526",
+      "name": "Loop Over Items"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.embeddingsOpenAi",
+      "typeVersion": 1.2,
+      "position": [
+        816,
+        128
+      ],
+      "id": "cce107e7-8f4a-49cc-8df1-7f376404eb52",
+      "name": "Embeddings OpenAI1",
+      "credentials": {
+        "openAiApi": {
+          "id": "X4hzLK52ICQvaNU3",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "dataType": "binary",
+        "textSplittingMode": "custom",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.documentDefaultDataLoader",
+      "typeVersion": 1.1,
+      "position": [
+        1008,
+        112
+      ],
+      "id": "e56cb04d-1f59-4aba-a8ef-75567e4c68df",
+      "name": "Default Data Loader"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.textSplitterRecursiveCharacterTextSplitter",
+      "typeVersion": 1,
+      "position": [
+        1200,
+        336
+      ],
+      "id": "c81c11cd-11b0-40ff-82b4-e20462f9d6d6",
+      "name": "Recursive Character Text Splitter"
+    },
+    {
+      "parameters": {
+        "mode": "insert",
+        "pineconeIndex": {
+          "__rl": true,
+          "value": "flowerupdatedata",
+          "mode": "list",
+          "cachedResultName": "flowerupdatedata"
+        },
+        "embeddingBatchSize": 1000,
+        "options": {
+          "pineconeNamespace": "newflowerdata"
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.vectorStorePinecone",
+      "typeVersion": 1.3,
+      "position": [
+        928,
+        -224
+      ],
+      "id": "ac48fe52-7132-4d9c-87ab-71369ca376dc",
+      "name": "Pinecone Vector Store",
+      "credentials": {
+        "pineconeApi": {
+          "id": "OzzCu5vMqEptF5xg",
+          "name": "PineconeApi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "retrieve-as-tool",
+        "toolDescription": "=Use this tool to retrieve flower product information and prices from the database.\nAlways call this tool when a customer asks about:\n- bouquet prices\n- flower availability\n- delivery cities\n- product details\n\nThe tool returns product names and prices in Pakistani Rupees (Rs).",
+        "pineconeIndex": {
+          "__rl": true,
+          "value": "flowerupdatedata",
+          "mode": "list",
+          "cachedResultName": "flowerupdatedata"
+        },
+        "topK": 5,
+        "options": {
+          "pineconeNamespace": "newflowerdata"
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.vectorStorePinecone",
+      "typeVersion": 1.3,
+      "position": [
+        -432,
+        176
+      ],
+      "id": "59a77bb2-19dc-4533-94fa-f6208c8f3c6e",
+      "name": "Pinecone Vector Store1",
+      "credentials": {
+        "pineconeApi": {
+          "id": "OzzCu5vMqEptF5xg",
+          "name": "PineconeApi account"
+        }
+      },
+      "notes": "{\n  \"type\": \"object\",\n  \"properties\": {\n    \"query\": {\n      \"type\": \"string\",\n      \"description\": \"User query for searching bouquet prices\"\n    }\n  },\n  \"required\": [\"query\"]\n}"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "890f54fa-a238-4e95-815e-6b17d0750e13",
+              "name": "urgency",
+              "value": "={{ JSON.parse ($json.output).urgency }} ",
+              "type": "string"
+            },
+            {
+              "id": "fe7fe473-5c60-43b4-b96c-b2a006108a8d",
+              "name": "category",
+              "value": "={{ JSON.parse ($json.output).category }} ",
+              "type": "string"
+            },
+            {
+              "id": "4d1a41bf-4feb-4b34-8f99-5f0ecc54f5f7",
+              "name": "=confidence",
+              "value": "={{ JSON.parse ($json.output).confidence }} ",
+              "type": "string"
+            },
+            {
+              "id": "3809f549-5686-47f7-96e2-16f2ac7aeee2",
+              "name": "customer_mood",
+              "value": "={{ JSON.parse ($json.output).customer_mood}} ",
+              "type": "string"
+            },
+            {
+              "id": "5d86494d-b4e3-49f4-b3eb-3f4c404a4ccb",
+              "name": "reply",
+              "value": "={{ JSON.parse ($json.output).reply}} ",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -384,
+        -144
+      ],
+      "id": "6fcdbdb9-2e12-4c6c-bd47-4e33d7e41e08",
+      "name": "Data Structuring"
+    },
+    {
+      "parameters": {
+        "sendTo": "={{ $('Gmail Trigger').item.json.from.value[0].address }}",
+        "subject": "=Hey Dear Customer",
+        "message": "={{ $json.reply }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        112,
+        -16
+      ],
+      "id": "d8dcddf1-328f-4ed1-9569-8cd2cdab82a7",
+      "name": "Send a message",
+      "webhookId": "8941eabc-370e-4243-953e-4c1f24388ab1",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "Nlxzo2ctrfqghvIQ",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "4046fa8b-601b-44da-bc94-658adf5541f3",
+              "leftValue": "={{ $json.confidence }}",
+              "rightValue": 0.7,
+              "operator": {
+                "type": "number",
+                "operation": "gt"
+              }
+            },
+            {
+              "id": "a601b622-1c56-4832-9d21-1014fba85cc3",
+              "leftValue": "={{ $json.customer_mood }}",
+              "rightValue": "frustrated",
+              "operator": {
+                "type": "string",
+                "operation": "notEquals"
+              }
+            },
+            {
+              "id": "5772189a-745d-40fc-9a6e-825c719aaf23",
+              "leftValue": "={{ $json.customer_mood }}",
+              "rightValue": "angry",
+              "operator": {
+                "type": "string",
+                "operation": "notEquals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "looseTypeValidation": true,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        -160,
+        -32
+      ],
+      "id": "f41d2d1e-faf8-4e6f-9e30-9f20bde9ec54",
+      "name": "Auto Respond?"
+    },
+    {
+      "parameters": {
+        "resource": "draft",
+        "subject": "Dear Customer",
+        "message": "={{ $json.reply }}",
+        "options": {
+          "sendTo": "={{ $('Gmail Trigger').item.json.from.value[0].address}}"
+        }
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        -96,
+        256
+      ],
+      "id": "a84e7f2b-b040-4717-8195-1ccb216424bd",
+      "name": "Create a draft",
+      "webhookId": "79936204-305c-49ff-99ae-b14a5303df7e",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "Nlxzo2ctrfqghvIQ",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "43eb4000-2b42-480b-9b2c-77772630e8ab",
+              "leftValue": "={{ $('Data Structuring').item.json.category }}",
+              "rightValue": "complaint",
+              "operator": {
+                "type": "string",
+                "operation": "equals",
+                "name": "filter.operator.equals"
+              }
+            },
+            {
+              "id": "3c3e639b-bfd5-4574-b5da-0012c84433c5",
+              "leftValue": "={{ $('Data Structuring').item.json.category }}",
+              "rightValue": "refund",
+              "operator": {
+                "type": "string",
+                "operation": "equals",
+                "name": "filter.operator.equals"
+              }
+            },
+            {
+              "id": "dec91fb6-252c-43fb-ba8d-c4ed3cadb8e9",
+              "leftValue": "={{ $('Data Structuring').item.json.urgency }}",
+              "rightValue": "critical ",
+              "operator": {
+                "type": "string",
+                "operation": "equals",
+                "name": "filter.operator.equals"
+              }
+            }
+          ],
+          "combinator": "or"
+        },
+        "looseTypeValidation": true,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        128,
+        224
+      ],
+      "id": "a6e783e9-ce32-4700-8a13-e6aa8a9b3998",
+      "name": "If"
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [
+        352,
+        384
+      ],
+      "id": "66869954-b50a-4a5e-abde-5a68770e7c6a",
+      "name": "No Operation, do nothing"
+    },
+    {
+      "parameters": {
+        "sendTo": "khadijafatima2301@gmail.com",
+        "subject": "🚨 Critical Customer Issue - Action Required",
+        "message": "=<div style=\"font-family: Arial, sans-serif; line-height: 1.8; color: #333;\">\n  \n  <p><strong>A critical customer issue requires immediate manager attention:</strong></p>\n\n  <p>\n    <strong>Customer:</strong> {{ $('Gmail Trigger').item.json.from.value[0].name }}<br>\n    <strong>Subject:</strong> {{ $('Gmail Trigger').item.json.subject }}<br>\n    <strong>Category:</strong> {{ $('Data Structuring').item.json.category }}<br>\n    <strong>Mood:</strong> {{ $('Data Structuring').item.json.customer_mood }}<br>\n    <strong>Urgency:</strong> {{ $('Data Structuring').item.json.urgency }}\n  </p>\n\n  <p><strong>Customer Message:</strong><br>\n  {{ $('Gmail Trigger').item.json.text }}</p>\n\n  <p><strong>AI Draft Response (created in Gmail drafts):</strong><br>\n  {{ $('Data Structuring').item.json.reply }}</p>\n\n  <p><strong>Action Required:</strong></p>\n  <ol>\n    <li>Review the draft in Gmail</li>\n    <li>Customize response if needed</li>\n    <li>Send to customer</li>\n    <li>Follow up as necessary</li>\n  </ol>\n\n  <p><strong>Gmail Link:</strong> \n  <a href=\"https://mail.google.com/mail/u/0/#inbox/{{ $('Gmail Trigger').item.json.id }}\">\n    https://mail.google.com/mail/u/0/#inbox/{{ $('Gmail Trigger').item.json.id }}\n  </a></p>\n\n</div>",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        416,
+        80
+      ],
+      "id": "83de3d76-8b16-482e-bcc0-c5aa3773ec12",
+      "name": "Send a message1",
+      "webhookId": "c9ebe83c-7501-43fc-8684-39b31145fe5f",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "Nlxzo2ctrfqghvIQ",
+          "name": "Gmail account"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Gmail Trigger": {
+      "main": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Simple Memory": {
+      "ai_memory": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_memory",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Embeddings OpenAI": {
+      "ai_embedding": [
+        [
+          {
+            "node": "Pinecone Vector Store1",
+            "type": "ai_embedding",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "When clicking ‘Execute workflow’": {
+      "main": [
+        [
+          {
+            "node": "Search files and folders",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Search files and folders": {
+      "main": [
+        [
+          {
+            "node": "Download file",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Download file": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Loop Over Items": {
+      "main": [
+        [],
+        [
+          {
+            "node": "Pinecone Vector Store",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Embeddings OpenAI1": {
+      "ai_embedding": [
+        [
+          {
+            "node": "Pinecone Vector Store",
+            "type": "ai_embedding",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Default Data Loader": {
+      "ai_document": [
+        [
+          {
+            "node": "Pinecone Vector Store",
+            "type": "ai_document",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Recursive Character Text Splitter": {
+      "ai_textSplitter": [
+        [
+          {
+            "node": "Default Data Loader",
+            "type": "ai_textSplitter",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Pinecone Vector Store": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Pinecone Vector Store1": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent": {
+      "main": [
+        [
+          {
+            "node": "Data Structuring",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Data Structuring": {
+      "main": [
+        [
+          {
+            "node": "Auto Respond?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Auto Respond?": {
+      "main": [
+        [
+          {
+            "node": "Send a message",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Create a draft",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create a draft": {
+      "main": [
+        [
+          {
+            "node": "If",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If": {
+      "main": [
+        [
+          {
+            "node": "Send a message1",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "No Operation, do nothing",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false
+  },
+  "versionId": "f5b18248-5f7c-4cb1-ab97-63ee63ac466d",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "34a029f81c04bfacdc8c61e67ac0cd6fab8814c649277a235906c1b4f4c19c5f"
+  },
+  "id": "Hgs78lIhwd47wyh9",
+  "tags": []
+}
